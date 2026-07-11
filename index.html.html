@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CelcomDigi · COSA Regional Performance Dashboard — June 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --cd-navy:#001871; --cd-yellow:#FFE000; --cd-bright:#0064DC; --cd-celcom:#009BDF;
+  --cd-space:#01091C; --cd-ice:#7ED3F1; --cd-peri:#6978CE; --cd-softy:#FFF399;
+  --cd-heading:'Montserrat',Arial,sans-serif; --cd-body:'Lato',Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--cd-body);background:#FFFFFF;color:#1a1a2e;min-height:100vh}
+header{background:#FFFFFF;color:var(--cd-navy);padding:26px 32px 20px;position:relative;overflow:hidden;
+  border-bottom:3px solid var(--cd-yellow)}
+header::after{content:'';position:absolute;right:-60px;top:-90px;width:340px;height:340px;border-radius:50%;
+  border:36px dotted rgba(0,24,113,.10);pointer-events:none}
+header h1{font-family:var(--cd-heading);font-weight:300;font-size:26px;letter-spacing:.4px;color:var(--cd-navy)}
+header h1 b{font-weight:700;color:var(--cd-navy)}
+header p{font-size:13px;color:#66708F;margin-top:4px}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 32px 60px}
+
+/* upload */
+#dropzone{border:2px dashed var(--cd-bright);border-radius:12px;background:#F8FAFF;padding:30px;text-align:center;
+  cursor:pointer;transition:.15s;margin-bottom:18px}
+#dropzone.drag{background:#E8F2FF;border-color:var(--cd-navy)}
+#dropzone h2{font-family:var(--cd-heading);font-weight:600;font-size:17px;color:var(--cd-navy)}
+#dropzone p{font-size:13px;color:#666;margin-top:6px}
+#filelist{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filechip{background:#EDF3FF;color:var(--cd-navy);border:1px solid #C9D4EE;border-radius:20px;padding:6px 14px;
+  font-size:12.5px;display:flex;gap:8px;align-items:center;font-weight:700}
+.filechip span.rows{color:var(--cd-bright);font-weight:400}
+.filechip button{background:none;border:none;color:var(--cd-navy);cursor:pointer;font-size:14px;line-height:1}
+#clearBtn{background:none;border:1px solid var(--cd-bright);color:var(--cd-bright);border-radius:20px;padding:6px 14px;
+  font-size:12.5px;cursor:pointer;font-family:var(--cd-body)}
+#clearBtn:hover{background:var(--cd-bright);color:#fff}
+
+/* filters */
+#filters{display:none;background:#fff;border:1px solid #E3E8F5;border-radius:12px;padding:16px 20px;margin-bottom:20px;
+  align-items:center;gap:18px;flex-wrap:wrap}
+#filters.show{display:flex}
+.flabel{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#667;font-weight:700;margin-right:2px}
+.monthchips{display:flex;gap:5px;flex-wrap:wrap}
+.mchip{border:1px solid #C9D4EE;background:#fff;color:var(--cd-navy);border-radius:16px;padding:4px 11px;
+  font-size:12px;cursor:pointer;font-family:var(--cd-body);font-weight:700}
+.mchip.on{background:var(--cd-navy);color:#fff;border-color:var(--cd-navy)}
+select{border:1px solid #C9D4EE;border-radius:8px;padding:6px 10px;font-family:var(--cd-body);font-size:13px;color:var(--cd-navy)}
+.tgl{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#445}
+.tgl input{accent-color:var(--cd-navy)}
+
+/* KPI */
+#kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:#fff;border:1px solid #E3E8F5;border-top:4px solid var(--cd-bright);border-radius:12px;
+  padding:16px 18px;color:var(--cd-navy);position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,24,113,.06)}
+.kpi.hero{background:var(--cd-softy);border:1px solid #EEDF7A;border-top:4px solid var(--cd-yellow)}
+.kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:#66708F;font-weight:700}
+.kpi .val{font-family:var(--cd-heading);font-weight:700;font-size:26px;margin-top:6px;color:var(--cd-navy)}
+.kpi .sub{font-size:11.5px;color:#7A84A3;margin-top:3px}
+.kpi.hero .val{color:var(--cd-navy)}
+.kpi.hero .lbl,.kpi.hero .sub{color:#6B6420}
+
+/* cards + tables */
+.card{background:#fff;border:1px solid #E3E8F5;border-radius:12px;padding:20px 22px;margin-bottom:22px}
+.card h3{font-family:var(--cd-heading);font-weight:600;font-size:16px;color:var(--cd-navy);margin-bottom:4px}
+.card .note{font-size:12px;color:#778;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--cd-navy);color:#fff;font-weight:700;padding:9px 10px;text-align:right;white-space:nowrap;font-size:12px}
+th:first-child,td:first-child{text-align:left}
+td{padding:8px 10px;text-align:right;border-bottom:1px solid #EDF0F8;white-space:nowrap}
+tr:nth-child(even) td{background:#F7F9FE}
+tr.total td{background:var(--cd-softy);color:var(--cd-navy);font-weight:700;border-top:2px solid var(--cd-navy)}
+td.neg{color:#C00000;font-weight:700}
+td.pos{color:#0B7A3B;font-weight:700}
+td.dim{color:#99A}
+.badge{display:inline-block;background:#FDECEC;color:#C00000;border-radius:10px;font-size:11px;padding:1px 8px;font-weight:700}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.chartbox{position:relative;height:320px}
+
+/* flags */
+#flagsCard{border-left:5px solid var(--cd-yellow)}
+#flags li{font-size:13px;margin:7px 0 7px 4px;list-style:none;padding-left:20px;position:relative;color:#334}
+#flags li::before{content:'⚠';position:absolute;left:0;color:#C08A00}
+
+#empty{color:#99A;text-align:center;padding:60px 0;font-size:14px}
+footer{text-align:center;font-size:11px;color:#99A;padding:18px}
+</style>
+</head>
+<body>
+<header>
+  <h1>celcom<b>digi</b> &nbsp;·&nbsp; COSA Regional Performance — <b>June 2026</b></h1>
+  <p>Upload the six regional COSA workbooks (Central · Northern · Southern · Eastern · Sabah · Sarawak). June is pre-selected — use the month chips to change the period. Internal Only.</p>
+</header>
+<div class="wrap">
+
+  <div id="dropzone">
+    <h2>Drop the 6 regional COSA Excel files here</h2>
+    <p>or click to browse — .xlsx files with a "COSA" sheet. You can add files one by one or all at once.</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm" multiple hidden>
+  </div>
+  <div id="filelist"></div>
+
+  <div id="filters">
+    <div><span class="flabel">Month</span></div>
+    <div class="monthchips" id="monthChips"></div>
+    <div><span class="flabel">Region</span></div>
+    <div class="monthchips" id="regionChips"></div>
+    <div><span class="flabel">Channel</span>
+      <select id="channelSel">
+        <option value="ALL">All channels</option>
+        <option value="CDE (Direct)">CDE (Direct)</option>
+        <option value="OC/ CDP (Indirect)">OC / CDP (Indirect)</option>
+        <option value="CDS (Retail)">CDS (Retail)</option>
+      </select>
+    </div>
+    <label class="tgl"><input type="checkbox" id="incCancelled"> Include Cancelled</label>
+    <label class="tgl"><input type="checkbox" id="incPlanned"> Include Planned</label>
+    <button id="clearBtn">Clear all files</button>
+  </div>
+
+  <div id="empty">No data loaded yet — upload the regional COSA files to begin.</div>
+
+  <div id="content" style="display:none">
+    <div id="kpis"></div>
+
+    <div class="card">
+      <h3>Regional Performance Summary</h3>
+      <div class="note">GA achievement vs target, revenue contribution and roadshow efficiency by region. Gap to Close = Target GA − Actual GA.</div>
+      <div style="overflow-x:auto"><table id="regionTable"></table></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3>Total GA vs Target by Region</h3><div class="chartbox"><canvas id="chGA"></canvas></div></div>
+      <div class="card"><h3>Revenue Contribution by Region</h3><div class="chartbox"><canvas id="chRev"></canvas></div></div>
+      <div class="card"><h3>GA by Type of Roadshow (Top 10)</h3><div class="chartbox"><canvas id="chType"></canvas></div></div>
+      <div class="card"><h3>Efficiency — Cost per GA by Region (RM)</h3><div class="chartbox"><canvas id="chCPGA"></canvas></div></div>
+    </div>
+
+    <div class="card">
+      <h3>Performance by Type of Roadshow</h3>
+      <div class="note">Roadshow formats ranked by Total GA. CPGA = Actual Spent ÷ Total GA; Rev/RM = Revenue ÷ Actual Spent.</div>
+      <div style="overflow-x:auto"><table id="typeTable"></table></div>
+    </div>
+
+    <div class="card">
+      <h3>Month-on-Month Trend</h3>
+      <div class="note">GA, Revenue and Events across every month present in the uploaded files. Respects the Region and Channel filters above; ignores the Month filter so the full trend is always visible. MoM % = change vs the previous month.</div>
+      <div class="chartbox" style="height:340px"><canvas id="chMoM"></canvas></div>
+      <div style="overflow-x:auto;margin-top:14px"><table id="momTable"></table></div>
+    </div>
+
+    <div class="card">
+      <h3>Quarter-on-Quarter Comparison</h3>
+      <div class="note">Q1 (Jan–Mar) vs Q2 (Apr–Jun) and any later quarters present. QoQ % = change vs the previous quarter. Only quarters with data are shown.</div>
+      <div class="grid2">
+        <div><div class="chartbox" style="height:300px"><canvas id="chQoQ"></canvas></div></div>
+        <div style="overflow-x:auto"><table id="qoqTable"></table></div>
+      </div>
+    </div>
+
+    <div class="card" id="flagsCard">
+      <h3>Data Quality Flags</h3>
+      <div class="note">Issues detected in the uploaded submissions — verify with regions before presenting to management.</div>
+      <ul id="flags"></ul>
+    </div>
+  </div>
+</div>
+<footer>CelcomDigi · Channel Operations &amp; Sales Activity · Private &amp; Confidential</footer>
+
+<script>
+/* ================= parsing ================= */
+const IDX = {no:0,month:1,start:2,end:3,days:4,status:5,channel:6,region:7,state:8,segment:9,
+             roadshow:10,location:11,cluster:12,dealers:13,size:14,budgetType:15,budgetReq:16,
+             budgetPool:17,targetGA:18,totalGA:28,revenue:29,spent:30};
+const MONTH_ORDER = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const REGIONS = ['Central','Northern','Southern','Eastern','Sabah','Sarawak'];
+const PALETTE = ['#001871','#0064DC','#009BDF','#7ED3F1','#6978CE','#FFE000'];
+
+const ROADSHOW_MAP = {
+  'up roadshow':'Up Roadshow','mall roadshow':'Mall Roadshow','roving':'Roving',
+  'community attack':'Community Attack','community':'Community Attack',
+  'in store':'In-Store','in-store':'In-Store','in shop':'In-Store','in shop promo':'In-Store','instore':'In-Store',
+  'school attack':'School Attack','uni attack':'Uni Attack','uni':'Uni Attack','uni roadshow':'Uni Attack',
+  'govt':'Govt','hyperlocal':'Hyperlocal','hyperlokal':'Hyperlocal','hypermarket':'Hypermarket',
+  'hq sponsorship':'HQ Sponsorship','project phoenix':'Project Phoenix','phoenix':'Project Phoenix',
+  'mitigation':'Mitigation','roadshow':'Roadshow (Generic)','fibre roadshow':'Fibre Roadshow',
+  'mi':'MI','pog':'POG','others':'Others','a&p (direct channel)':'Others','s&p (direct channel)':'Others'
+};
+const KNOWN_BAD_RS = new Set(['malaysian','youth']); // segment values leaked into roadshow column
+
+function cleanStr(v){ if(v===null||v===undefined) return ''; return String(v).replace(/\u00a0/g,' ').trim(); }
+function cleanNum(v){
+  if(v===null||v===undefined) return null;
+  if(typeof v==='number') return isFinite(v)?v:null;
+  const s = String(v).replace(/\u00a0/g,'').replace(/RM/ig,'').replace(/,/g,'').trim();
+  if(s==='') return null;
+  const n = parseFloat(s);
+  return isNaN(n)?null:n;
+}
+function normMonth(v){
+  const s = cleanStr(v).toLowerCase().slice(0,4);
+  const map = {jan:'Jan',feb:'Feb',mar:'Mar',apr:'Apr',may:'May',jun:'Jun',june:'Jun',
+               jul:'Jul',july:'Jul',aug:'Aug',sep:'Sep',sept:'Sep',oct:'Oct',nov:'Nov',dec:'Dec'};
+  return map[s.slice(0,3)] || map[s] || (cleanStr(v)?cleanStr(v):'');
+}
+function normRegion(v, filename){
+  const s = cleanStr(v).toLowerCase();
+  for(const r of REGIONS) if(s===r.toLowerCase()) return r;
+  const f = (filename||'').toLowerCase();
+  for(const r of REGIONS) if(f.includes(r.toLowerCase())) return r;
+  return cleanStr(v)||'Unknown';
+}
+function normRoadshow(v){
+  const s = cleanStr(v).toLowerCase().replace(/\s+/g,' ');
+  if(!s) return {name:'(Blank)', bad:false};
+  if(KNOWN_BAD_RS.has(s)) return {name:'Unclassified', bad:true};
+  if(ROADSHOW_MAP[s]) return {name:ROADSHOW_MAP[s], bad:false};
+  return {name:'Unclassified', bad:true, raw:cleanStr(v)};
+}
+function normStatus(v){
+  const s = cleanStr(v).toLowerCase();
+  if(s.startsWith('complet')) return 'Completed';
+  if(s.startsWith('cancel')) return 'Cancelled';
+  if(s.startsWith('plan')) return 'Planned';
+  if(s.startsWith('ongoing')) return 'Ongoing';
+  return s?cleanStr(v):'(Blank)';
+}
+
+let files = {};        // filename -> {region, rows:[...]}
+let charts = {};
+
+function parseWorkbook(name, buf){
+  const wb = XLSX.read(buf, {type:'array'});
+  let sheetName = wb.SheetNames.find(n=>/cosa/i.test(n)) || wb.SheetNames[0];
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+  let hdr = -1;
+  for(let i=0;i<Math.min(10,aoa.length);i++){
+    const vals = (aoa[i]||[]).map(cleanStr);
+    if(vals.includes('Month') && vals.includes('Region')){ hdr = i; break; }
+  }
+  if(hdr<0) throw new Error('Could not find COSA header row (needs "Month" and "Region" columns)');
+  const rows = [];
+  for(let i=hdr+1;i<aoa.length;i++){
+    const r = aoa[i]||[];
+    const month = normMonth(r[IDX.month]);
+    const regionRaw = cleanStr(r[IDX.region]);
+    if(!month && !regionRaw) continue;
+    const rs = normRoadshow(r[IDX.roadshow]);
+    rows.push({
+      month, region: normRegion(regionRaw, name),
+      status: normStatus(r[IDX.status]),
+      channel: cleanStr(r[IDX.channel]) || '(Blank)',
+      roadshow: rs.name, rsBad: rs.bad, rsRaw: rs.raw||null,
+      days: cleanNum(r[IDX.days]),
+      dealers: cleanNum(r[IDX.dealers]),
+      budgetReq: cleanNum(r[IDX.budgetReq]),
+      targetGA: cleanNum(r[IDX.targetGA]),
+      totalGA: cleanNum(r[IDX.totalGA]),
+      revenue: cleanNum(r[IDX.revenue]),
+      spent: cleanNum(r[IDX.spent]),
+    });
+  }
+  const regionCount = {};
+  rows.forEach(r=>regionCount[r.region]=(regionCount[r.region]||0)+1);
+  const region = Object.entries(regionCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Unknown';
+  return {region, rows};
+}
+
+/* ================= UI: upload ================= */
+const dz = document.getElementById('dropzone'), fi = document.getElementById('fileInput');
+dz.addEventListener('click', ()=>fi.click());
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('drag');handleFiles(e.dataTransfer.files);});
+fi.addEventListener('change', ()=>handleFiles(fi.files));
+document.getElementById('clearBtn').addEventListener('click', ()=>{files={};renderFileList();refresh();});
+
+function handleFiles(list){
+  [...list].forEach(f=>{
+    if(!/\.(xlsx|xlsm)$/i.test(f.name)) return;
+    const reader = new FileReader();
+    reader.onload = e=>{
+      try{
+        files[f.name] = parseWorkbook(f.name, new Uint8Array(e.target.result));
+      }catch(err){
+        files[f.name] = {region:'ERROR', rows:[], error:err.message};
+      }
+      renderFileList(); refresh();
+    };
+    reader.readAsArrayBuffer(f);
+  });
+  fi.value='';
+}
+function renderFileList(){
+  const el = document.getElementById('filelist');
+  el.innerHTML = '';
+  Object.entries(files).forEach(([name,f])=>{
+    const chip = document.createElement('div'); chip.className='filechip';
+    chip.innerHTML = f.error
+      ? `⚠ ${name} — ${f.error}`
+      : `${f.region} <span class="rows">${f.rows.length} rows</span>`;
+    const x = document.createElement('button'); x.textContent='✕';
+    x.onclick = ()=>{delete files[name];renderFileList();refresh();};
+    chip.appendChild(x); el.appendChild(chip);
+  });
+}
+
+/* ================= filters ================= */
+let selMonths = new Set();
+let selRegions = new Set();
+let defaultApplied = false; // pre-select June on first load if present
+function buildRegionChips(available){
+  const el = document.getElementById('regionChips'); el.innerHTML='';
+  const all = document.createElement('button'); all.className='mchip'+(selRegions.size===0?' on':''); all.textContent='All';
+  all.onclick=()=>{selRegions.clear();refresh();};
+  el.appendChild(all);
+  REGIONS.filter(r=>available.has(r)).forEach(r=>{
+    const b = document.createElement('button');
+    b.className='mchip'+(selRegions.has(r)?' on':''); b.textContent=r;
+    b.onclick=()=>{selRegions.has(r)?selRegions.delete(r):selRegions.add(r);refresh();};
+    el.appendChild(b);
+  });
+}
+function buildMonthChips(available){
+  const el = document.getElementById('monthChips'); el.innerHTML='';
+  const all = document.createElement('button'); all.className='mchip'+(selMonths.size===0?' on':''); all.textContent='All';
+  all.onclick=()=>{selMonths.clear();refresh();};
+  el.appendChild(all);
+  MONTH_ORDER.filter(m=>available.has(m)).forEach(m=>{
+    const b = document.createElement('button');
+    b.className='mchip'+(selMonths.has(m)?' on':''); b.textContent=m;
+    b.onclick=()=>{selMonths.has(m)?selMonths.delete(m):selMonths.add(m);refresh();};
+    el.appendChild(b);
+  });
+}
+document.getElementById('channelSel').addEventListener('change', refresh);
+document.getElementById('incCancelled').addEventListener('change', refresh);
+document.getElementById('incPlanned').addEventListener('change', refresh);
+
+/* ================= aggregation + render ================= */
+const fmt0 = n=>n===null||n===undefined?'—':n.toLocaleString('en-MY',{maximumFractionDigits:0});
+const fmtRM = n=>n===null||n===undefined?'—':'RM '+n.toLocaleString('en-MY',{maximumFractionDigits:0});
+const fmt1 = n=>n===null||n===undefined?'—':n.toLocaleString('en-MY',{maximumFractionDigits:1});
+
+function refresh(){
+  const allRows = Object.values(files).flatMap(f=>f.rows);
+  const has = allRows.length>0;
+  document.getElementById('filters').classList.toggle('show', has);
+  document.getElementById('content').style.display = has?'block':'none';
+  document.getElementById('empty').style.display = has?'none':'block';
+  if(!has) return;
+
+  const availMonths = new Set(allRows.map(r=>r.month).filter(m=>MONTH_ORDER.includes(m)));
+  if(!defaultApplied && availMonths.has('Jun')){ selMonths.add('Jun'); defaultApplied = true; }
+  buildMonthChips(availMonths);
+  buildRegionChips(new Set(allRows.map(r=>r.region)));
+
+  const ch = document.getElementById('channelSel').value;
+  const incC = document.getElementById('incCancelled').checked;
+  const incP = document.getElementById('incPlanned').checked;
+
+  const rows = allRows.filter(r=>{
+    if(selMonths.size && !selMonths.has(r.month)) return false;
+    if(selRegions.size && !selRegions.has(r.region)) return false;
+    if(ch!=='ALL' && r.channel!==ch) return false;
+    if(!incC && r.status==='Cancelled') return false;
+    if(!incP && r.status==='Planned') return false;
+    return true;
+  });
+  /* trend rows: same filters EXCEPT month, so MoM/QoQ always show the full timeline */
+  const trendRows = allRows.filter(r=>{
+    if(selRegions.size && !selRegions.has(r.region)) return false;
+    if(ch!=='ALL' && r.channel!==ch) return false;
+    if(!incC && r.status==='Cancelled') return false;
+    if(!incP && r.status==='Planned') return false;
+    return MONTH_ORDER.includes(r.month);
+  });
+  renderTrends(trendRows);
+
+  /* per-region agg */
+  const reg = {};
+  REGIONS.forEach(r=>reg[r]={events:0,days:0,ga:0,target:0,hasTarget:false,rev:0,spent:0,badRS:0});
+  const other = {events:0,days:0,ga:0,target:0,hasTarget:false,rev:0,spent:0,badRS:0};
+  rows.forEach(r=>{
+    const g = reg[r.region] || other;
+    g.events++; g.days += r.days||0; g.ga += r.totalGA||0;
+    if(r.targetGA!==null){g.target += r.targetGA; g.hasTarget=true;}
+    g.rev += r.revenue||0; g.spent += r.spent||0;
+    if(r.rsBad) g.badRS++;
+  });
+
+  const totRev = Object.values(reg).reduce((s,g)=>s+g.rev,0)+other.rev;
+  const totGA  = Object.values(reg).reduce((s,g)=>s+g.ga,0)+other.ga;
+  const totSp  = Object.values(reg).reduce((s,g)=>s+g.spent,0)+other.spent;
+  const totEv  = rows.length;
+  const totTgt = Object.values(reg).filter(g=>g.hasTarget).reduce((s,g)=>s+g.target,0);
+  const gaVsTgt= Object.values(reg).filter(g=>g.hasTarget).reduce((s,g)=>s+g.ga,0);
+
+  /* KPI cards */
+  const totGap = totTgt-gaVsTgt;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="lbl">Roadshows / Events</div><div class="val">${fmt0(totEv)}</div><div class="sub">across ${Object.values(reg).filter(g=>g.events>0).length} regions</div></div>
+    <div class="kpi"><div class="lbl">Total GA</div><div class="val">${fmt0(totGA)}</div><div class="sub">${fmt1(totEv?totGA/totEv:null)} GA per event</div></div>
+    <div class="kpi"><div class="lbl">Total Revenue</div><div class="val">${fmtRM(totRev)}</div><div class="sub">${totSp>0?fmt1(totRev/totSp)+'x return per RM spent':''}</div></div>
+    <div class="kpi"><div class="lbl">Actual Spent</div><div class="val">${fmtRM(totSp)}</div><div class="sub">avg CPGA ${totGA>0?fmtRM(totSp/totGA):'—'}</div></div>
+    <div class="kpi hero"><div class="lbl">Gap to Close</div><div class="val">${totTgt>0?(totGap>0?fmt0(totGap):'0'):'—'}</div>
+      <div class="sub">${totTgt>0?fmt1(gaVsTgt/totTgt*100)+'% of target achieved (regions with targets)':'no targets furnished'}</div></div>`;
+
+  /* regional table */
+  let html = `<tr><th>Region</th><th>Events</th><th>Event Days</th><th>Total GA</th><th>Target GA</th>
+    <th>Achieve %</th><th>Gap to Close</th><th>Revenue</th><th>Rev Contrib %</th>
+    <th>Actual Spent</th><th>CPGA</th><th>GA / Event</th></tr>`;
+  REGIONS.forEach(rn=>{
+    const g = reg[rn]; if(g.events===0) return;
+    const ach = g.hasTarget && g.target>0 ? g.ga/g.target*100 : null;
+    const gap = g.hasTarget && g.target>0 ? g.target-g.ga : null;
+    const cpga = g.ga>0 && g.spent>0 ? g.spent/g.ga : null;
+    html += `<tr><td><b>${rn}</b>${g.hasTarget?'':' <span class="badge">no target</span>'}</td>
+      <td>${fmt0(g.events)}</td><td>${fmt0(g.days)}</td><td>${fmt0(g.ga)}</td>
+      <td>${g.hasTarget?fmt0(g.target):'—'}</td>
+      <td class="${ach===null?'dim':ach>=100?'pos':''}">${ach===null?'—':fmt1(ach)+'%'}</td>
+      <td class="${gap===null?'dim':gap>0?'neg':'pos'}">${gap===null?'—':gap>0?fmt0(gap):'✓ met'}</td>
+      <td>${fmtRM(g.rev)}</td><td>${totRev>0?fmt1(g.rev/totRev*100)+'%':'—'}</td>
+      <td>${fmtRM(g.spent)}</td><td>${cpga===null?'—':fmtRM(cpga)}</td>
+      <td>${g.events?fmt1(g.ga/g.events):'—'}</td></tr>`;
+  });
+  html += `<tr class="total"><td>Total</td><td>${fmt0(totEv)}</td>
+    <td>${fmt0(Object.values(reg).reduce((s,g)=>s+g.days,0)+other.days)}</td>
+    <td>${fmt0(totGA)}</td><td>${totTgt>0?fmt0(totTgt):'—'}</td>
+    <td>${totTgt>0?fmt1(gaVsTgt/totTgt*100)+'%':'—'}</td>
+    <td>${totTgt>0?(totGap>0?fmt0(totGap):'✓ met'):'—'}</td>
+    <td>${fmtRM(totRev)}</td><td>100%</td><td>${fmtRM(totSp)}</td>
+    <td>${totGA>0?fmtRM(totSp/totGA):'—'}</td><td>${totEv?fmt1(totGA/totEv):'—'}</td></tr>`;
+  document.getElementById('regionTable').innerHTML = html;
+
+  /* roadshow type agg */
+  const types = {};
+  rows.forEach(r=>{
+    const t = types[r.roadshow] ||= {events:0,ga:0,rev:0,spent:0};
+    t.events++; t.ga+=r.totalGA||0; t.rev+=r.revenue||0; t.spent+=r.spent||0;
+  });
+  const typeSorted = Object.entries(types).sort((a,b)=>b[1].ga-a[1].ga);
+  let th = `<tr><th>Type of Roadshow</th><th>Events</th><th>Total GA</th><th>GA / Event</th>
+    <th>Revenue</th><th>Actual Spent</th><th>CPGA</th><th>Rev / RM Spent</th></tr>`;
+  typeSorted.forEach(([name,t])=>{
+    th += `<tr><td>${name==='Unclassified'?'Unclassified <span class="badge">check source</span>':name}</td>
+      <td>${fmt0(t.events)}</td><td>${fmt0(t.ga)}</td><td>${t.events?fmt1(t.ga/t.events):'—'}</td>
+      <td>${fmtRM(t.rev)}</td><td>${fmtRM(t.spent)}</td>
+      <td>${t.ga>0&&t.spent>0?fmtRM(t.spent/t.ga):'—'}</td>
+      <td>${t.spent>0?fmt1(t.rev/t.spent)+'x':'—'}</td></tr>`;
+  });
+  document.getElementById('typeTable').innerHTML = th;
+
+  /* charts */
+  const activeRegs = REGIONS.filter(rn=>reg[rn].events>0);
+  drawChart('chGA','bar',{
+    labels:activeRegs,
+    datasets:[
+      {label:'Total GA',data:activeRegs.map(r=>reg[r].ga),backgroundColor:'#0064DC',borderRadius:4},
+      {label:'Target GA',data:activeRegs.map(r=>reg[r].hasTarget?reg[r].target:null),backgroundColor:'#FFE000',borderRadius:4}
+    ]},{scales:{y:{beginAtZero:true}}});
+  drawChart('chRev','doughnut',{
+    labels:activeRegs,
+    datasets:[{data:activeRegs.map(r=>reg[r].rev),backgroundColor:PALETTE,borderWidth:2,borderColor:'#fff'}]},
+    {plugins:{legend:{position:'right'}}});
+  const top10 = typeSorted.filter(([n])=>n!=='(Blank)').slice(0,10);
+  drawChart('chType','bar',{
+    labels:top10.map(([n])=>n),
+    datasets:[{label:'Total GA',data:top10.map(([,t])=>t.ga),backgroundColor:'#009BDF',borderRadius:4}]},
+    {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}});
+  const cpgaData = activeRegs.map(r=>reg[r].ga>0&&reg[r].spent>0?+(reg[r].spent/reg[r].ga).toFixed(2):null);
+  drawChart('chCPGA','bar',{
+    labels:activeRegs,
+    datasets:[{label:'Cost per GA (RM)',data:cpgaData,
+      backgroundColor:activeRegs.map((r,i)=>cpgaData[i]!==null&&cpgaData[i]===Math.max(...cpgaData.filter(v=>v!==null))?'#FFE000':'#001871'),
+      borderRadius:4}]},
+    {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}});
+
+  /* flags */
+  const flags = [];
+  REGIONS.forEach(rn=>{
+    const g = reg[rn];
+    if(g.events>0 && !g.hasTarget) flags.push(`<b>${rn}</b>: Target GA column is empty for all rows — gap to close cannot be computed. Request targets from the region.`);
+    if(g.badRS>0) flags.push(`<b>${rn}</b>: ${g.badRS} rows have unrecognised values in "Type of Roadshow" (e.g. segment names like "Malaysian"/"Youth" entered in the wrong column). Bucketed as Unclassified.`);
+  });
+  const gaNoSpent = rows.filter(r=>(r.totalGA||0)>0 && !(r.spent>0)).length;
+  if(gaNoSpent>0) flags.push(`${fmt0(gaNoSpent)} events report GA but have no Actual Spent — likely funded via the Regional Spending tracker outside COSA, so CPGA understates true cost.`);
+  const noGA = rows.filter(r=>r.status==='Completed' && (r.totalGA===null)).length;
+  if(noGA>0) flags.push(`${fmt0(noGA)} Completed events have a blank Total GA (not zero) — confirm whether results are pending or missing.`);
+  const cCount = allRows.filter(r=>r.status==='Cancelled').length;
+  const pCount = allRows.filter(r=>r.status==='Planned').length;
+  if(cCount) flags.push(`${cCount} Cancelled events ${incC?'are included':'excluded'} from the analysis (toggle above).`);
+  if(pCount) flags.push(`${pCount} Planned (future) events ${incP?'are included':'excluded'} from the analysis (toggle above).`);
+  flags.push(`Month labels were normalised (e.g. "June"→Jun, "Sept"→Sep, "APR"→Apr) and region casing standardised (e.g. "EASTERN"→Eastern).`);
+  document.getElementById('flags').innerHTML = flags.map(f=>`<li>${f}</li>`).join('');
+}
+
+const QUARTER = {Jan:'Q1',Feb:'Q1',Mar:'Q1',Apr:'Q2',May:'Q2',Jun:'Q2',Jul:'Q3',Aug:'Q3',Sep:'Q3',Oct:'Q4',Nov:'Q4',Dec:'Q4'};
+function pct(cur, prev){
+  if(prev===null||prev===undefined||prev===0) return null;
+  return (cur-prev)/prev*100;
+}
+function pctCell(v){
+  if(v===null) return '<td class="dim">—</td>';
+  const cls = v>0?'pos':v<0?'neg':'';
+  const arrow = v>0?'▲':v<0?'▼':'';
+  return `<td class="${cls}">${arrow} ${fmt1(Math.abs(v))}%</td>`;
+}
+function renderTrends(tr){
+  /* ---- Month on Month ---- */
+  const byMonth = {};
+  MONTH_ORDER.forEach(m=>byMonth[m]={events:0,ga:0,rev:0,spent:0});
+  tr.forEach(r=>{const g=byMonth[r.month]; g.events++; g.ga+=r.totalGA||0; g.rev+=r.revenue||0; g.spent+=r.spent||0;});
+  const months = MONTH_ORDER.filter(m=>byMonth[m].events>0);
+
+  drawChart('chMoM','bar',{
+    labels:months,
+    datasets:[
+      {type:'bar',label:'Total GA',data:months.map(m=>byMonth[m].ga),backgroundColor:'#0064DC',borderRadius:4,yAxisID:'y',order:2},
+      {type:'bar',label:'Revenue (RM)',data:months.map(m=>byMonth[m].rev),backgroundColor:'#FFE000',borderRadius:4,yAxisID:'y1',order:3},
+      {type:'line',label:'Events',data:months.map(m=>byMonth[m].events),borderColor:'#001871',backgroundColor:'#001871',
+        borderWidth:2,tension:.3,yAxisID:'y2',order:1,pointRadius:3},
+    ]},{
+    scales:{
+      y:{position:'left',beginAtZero:true,title:{display:true,text:'GA',font:{family:'Lato'}}},
+      y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'Revenue (RM)',font:{family:'Lato'}}},
+      y2:{display:false,beginAtZero:true},
+    },plugins:{legend:{position:'bottom'}}});
+
+  let mh = `<tr><th>Metric</th>${months.map(m=>`<th>${m}</th>`).join('')}</tr>`;
+  const mkRow = (label, key, isRM) => {
+    let cells = '';
+    months.forEach((m,i)=>{
+      const v = byMonth[m][key];
+      const prev = i>0 ? byMonth[months[i-1]][key] : null;
+      const p = i>0 ? pct(v, prev) : null;
+      const disp = isRM ? fmtRM(v) : fmt0(v);
+      const badge = p===null ? '' : `<br><span style="font-size:10px;font-weight:700;color:${p>0?'#0B7A3B':p<0?'#C00000':'#99A'}">${p>0?'▲':p<0?'▼':''}${fmt1(Math.abs(p))}%</span>`;
+      cells += `<td>${disp}${badge}</td>`;
+    });
+    return `<tr><td><b>${label}</b></td>${cells}</tr>`;
+  };
+  mh += mkRow('Events','events',false);
+  mh += mkRow('Total GA','ga',false);
+  mh += mkRow('Revenue','rev',true);
+  mh += mkRow('Actual Spent','spent',true);
+  document.getElementById('momTable').innerHTML = mh;
+
+  /* ---- Quarter on Quarter ---- */
+  const byQ = {};
+  ['Q1','Q2','Q3','Q4'].forEach(q=>byQ[q]={events:0,ga:0,rev:0,spent:0});
+  tr.forEach(r=>{const q=QUARTER[r.month]; if(!q) return; const g=byQ[q]; g.events++; g.ga+=r.totalGA||0; g.rev+=r.revenue||0; g.spent+=r.spent||0;});
+  const quarters = ['Q1','Q2','Q3','Q4'].filter(q=>byQ[q].events>0);
+  const qLabel = {Q1:'Q1 (Jan–Mar)',Q2:'Q2 (Apr–Jun)',Q3:'Q3 (Jul–Sep)',Q4:'Q4 (Oct–Dec)'};
+
+  drawChart('chQoQ','bar',{
+    labels:quarters.map(q=>qLabel[q]),
+    datasets:[
+      {label:'Total GA',data:quarters.map(q=>byQ[q].ga),backgroundColor:'#0064DC',borderRadius:4,yAxisID:'y'},
+      {label:'Revenue (RM)',data:quarters.map(q=>byQ[q].rev),backgroundColor:'#FFE000',borderRadius:4,yAxisID:'y1'},
+    ]},{
+    scales:{
+      y:{position:'left',beginAtZero:true,title:{display:true,text:'GA',font:{family:'Lato'}}},
+      y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'Revenue (RM)',font:{family:'Lato'}}},
+    },plugins:{legend:{position:'bottom'}}});
+
+  let qh = `<tr><th>Metric</th>${quarters.map(q=>`<th>${qLabel[q]}</th>`).join('')}${quarters.length>1?'<th>QoQ Δ</th>':''}</tr>`;
+  const mkQRow = (label, key, isRM) => {
+    let cells='';
+    quarters.forEach(q=>{ cells += `<td>${isRM?fmtRM(byQ[q][key]):fmt0(byQ[q][key])}</td>`; });
+    let delta='';
+    if(quarters.length>1){
+      const last=byQ[quarters[quarters.length-1]][key], prev=byQ[quarters[quarters.length-2]][key];
+      delta = pctCell(pct(last,prev));
+    }
+    return `<tr><td><b>${label}</b></td>${cells}${delta}</tr>`;
+  };
+  qh += mkQRow('Events','events',false);
+  qh += mkQRow('Total GA','ga',false);
+  qh += mkQRow('Revenue','rev',true);
+  qh += mkQRow('Actual Spent','spent',true);
+  // CPGA row (derived)
+  let cpgaCells='';
+  quarters.forEach(q=>{const g=byQ[q]; cpgaCells += `<td>${g.ga>0&&g.spent>0?fmtRM(g.spent/g.ga):'—'}</td>`;});
+  qh += `<tr><td><b>CPGA</b></td>${cpgaCells}${quarters.length>1?'<td class="dim">—</td>':''}</tr>`;
+  document.getElementById('qoqTable').innerHTML = qh;
+}
+
+function drawChart(id, type, data, extra){
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type, data,
+    options: Object.assign({
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{family:'Lato'}}}},
+    }, extra||{})
+  });
+}
+</script>
+</body>
+</html>
